@@ -20,7 +20,19 @@ class DB extends MongoClient {
         this.s.options = options;
         this.dbo = null;
         this.dbConnect();
-        this.events();
+    }
+    /**
+     * this function will check if db is ready and then call current func
+     * @param {function} func It will return selected function
+     */
+    dbReady(func, data){
+        setTimeout(() => {
+            if(!this.dbo){
+                this.dbReady(func, data);
+            } else {
+                func.call(this, data);
+            }
+        }, 100);
     }
     async dbConnect(){
         await this.connect({}, err => {
@@ -30,33 +42,41 @@ class DB extends MongoClient {
         // create tables from table list if not exist
         collections.forEach(async collect => {
             const exists = await this.checkExist(collect);
+            // check if table is not exist and create {collect} name of table
             if(!exists){
                 await this.dbo.createCollection(collect, (err, res) => {
-                    console.log(`create "${collect}" table`);
+                    // create table successfully
                 });
-            } else console.log(`"${collect}" table created before`);
+            }
         });
     }
     // check if table exist
     async checkExist(collectionName){
         return await(await this.dbo.listCollections().toArray()).findIndex((item) => item.name === collectionName) !== -1;
     }
-    // selected db events ( this.dbo )
-    events(){
-        this.on('get', async ({collectionName}) => {
-            if(this.dbo){
-                const exists = await this.checkExist(collectionName);
-                if(exists){
-                    console.log(`Collection "${collectionName}" is selected`)
-                } else console.log(`Collection "${collectionName}" not exist`);
-                /*this.dbo.collection('user').findOne({}, function(err, result) {
-                    console.log('sss');
-                });*/
-                /*this.dbo.createCollection('user', (err, res) => {
-                    console.log('create');
-                });*/
+    /**
+     * get data from db table ( this.dbo )
+     * @param {string} collectionName Name of table
+     * @param {object} query selected Query
+    */
+    async getEv(data){
+        if(this.dbo){
+            let { code, collectionName, query } = data;
+            const exists = await this.checkExist(collectionName);
+            if(exists){
+                // get data from selected table with query ( use {} when should get all data)
+                await this.dbo.collection(collectionName).find(query).toArray((err, result) => {
+                    if(err) throw err;
+                    this.emit(code, result);
+                });
+            } else {
+                // if table does not exist return false;
+                this.emit(code, false);
             }
-        });
+        } else {
+            // if db is not ready yet , will call dbReady until this.dbo is ready
+            this.dbReady(this.getEv, data);
+        }
     }
 }
 
