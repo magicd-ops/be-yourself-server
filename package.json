@@ -19,7 +19,7 @@
   "homepage": "https://github.com/magicd-ops/be-yourself-server#readme",
   "dependencies": {
     "express": "^4.17.1",
-    "magic-mongodb": "0.0.1",
+    "magic-mongodb": "^0.0.4",
     "uuid": "^8.3.2"
   }
 }
